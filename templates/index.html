@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EduMatch | Academic ATS</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #f0f4f8 0%, #d9e2ec 100%);
+            min-height: 100vh;
+        }
+        .edu-card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+            border-top: 5px solid #102a43;
+        }
+        .btn-primary {
+            background-color: #102a43;
+            transition: all 0.3s ease;
+        }
+        .btn-primary:hover {
+            background-color: #243b53;
+            transform: translateY(-1px);
+        }
+        .loading-dots:after {
+            content: '.';
+            animation: dots 1.5s steps(5, end) infinite;
+        }
+        @keyframes dots {
+            0%, 20% { content: '.'; }
+            40% { content: '..'; }
+            60% { content: '...'; }
+            80%, 100% { content: ''; }
+        }
+    </style>
+</head>
+<body class="py-12 px-4">
+
+    <div class="max-w-5xl mx-auto">
+        <header class="text-center mb-10">
+            <h1 class="text-4xl font-bold text-slate-800 mb-2">EduMatch ATS</h1>
+            <p class="text-slate-500">Bridge the gap between your skills and your dream career.</p>
+        </header>
+
+        <div class="grid lg:grid-cols-2 gap-8">
+            <div class="edu-card p-8">
+                <h2 class="text-xl font-semibold text-slate-700 mb-6 flex items-center">
+                    <span class="mr-2">📝</span> Analysis Parameters
+                </h2>
+                
+                <form id="atsForm" class="space-y-5">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-600 mb-1">Target Job Role</label>
+                        <select id="role" name="role" class="w-full border border-slate-200 rounded-lg p-3 outline-none focus:ring-2 focus:ring-blue-500">
+                            <option>Software Engineer</option>
+                            <option>Data Analyst</option>
+                            <option>UX Designer</option>
+                            <option>Marketing Manager</option>
+                            <option>Product Manager</option>
+                            <option>HR Specialist</option>
+                            <option>Finance Analyst</option>
+                            <option>Sales Executive</option>
+                            <option>Operations Manager</option>
+                            <option>Content Writer</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-slate-600 mb-1">Upload Resume (PDF)</label>
+                        <input type="file" id="resume" accept=".pdf" class="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-slate-600 mb-1">Job Description</label>
+                        <textarea id="jd" rows="6" class="w-full border border-slate-200 rounded-lg p-3 outline-none focus:ring-2 focus:ring-blue-500" placeholder="Paste the job requirements here..."></textarea>
+                    </div>
+
+                    <button type="submit" id="submitBtn" class="btn-primary w-full text-white font-semibold py-3 rounded-lg shadow-md">
+                        Start Analysis
+                    </button>
+                </form>
+            </div>
+
+            <div id="results" class="edu-card p-8 hidden">
+                <div class="text-center mb-6">
+                    <h2 class="text-xl font-semibold text-slate-700 mb-2">Analysis Complete</h2>
+                    <div id="scoreCircle" class="inline-flex items-center justify-center w-24 h-24 rounded-full border-4 border-blue-600">
+                        <span id="matchScore" class="text-3xl font-bold text-blue-800">0%</span>
+                    </div>
+                </div>
+
+                <div class="prose prose-slate max-w-none">
+                    <h3 class="text-lg font-semibold text-slate-800">Detailed Feedback</h3>
+                    <div id="atsFeedback" class="text-sm text-slate-600 whitespace-pre-line bg-slate-50 p-4 rounded-lg border border-slate-100">
+                        </div>
+                </div>
+            </div>
+
+            <div id="loading" class="edu-card p-8 hidden flex flex-col items-center justify-center">
+                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-900 mb-4"></div>
+                <p class="text-slate-600 font-medium">Analyzing your credentials<span class="loading-dots"></span></p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const form = document.getElementById('atsForm');
+        const results = document.getElementById('results');
+        const loading = document.getElementById('loading');
+        const submitBtn = document.getElementById('submitBtn');
+
+        form.onsubmit = async (e) => {
+            e.preventDefault();
+
+            const file = document.getElementById('resume').files[0];
+            const jd = document.getElementById('jd').value;
+            const role = document.getElementById('role').value;
+
+            if(!file || !jd) {
+                alert("Please upload a resume and paste a job description.");
+                return;
+            }
+
+            // UI Transitions
+            results.classList.add('hidden');
+            loading.classList.remove('hidden');
+            submitBtn.disabled = true;
+
+            const formData = new FormData();
+            formData.append('resume', file);
+            formData.append('job_description', jd);
+            formData.append('role', role);
+
+            try {
+                const response = await fetch('/analyze', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json();
+
+                if(data.error) {
+                    alert(data.error);
+                } else {
+                    // Extract score using Regex
+                    const scoreMatch = data.ats_result.match(/(\d+)%/);
+                    const score = scoreMatch ? scoreMatch[0] : "Check Below";
+                    
+                    document.getElementById('matchScore').innerText = score;
+                    document.getElementById('atsFeedback').innerText = data.ats_result;
+                    
+                    loading.classList.add('hidden');
+                    results.classList.remove('hidden');
+                }
+            } catch (err) {
+                alert("Server error. Please try again.");
+            } finally {
+                submitBtn.disabled = false;
+                loading.classList.add('hidden');
+            }
+        };
+    </script>
+</body>
+</html>
